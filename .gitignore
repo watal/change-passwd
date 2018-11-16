@@ -11,3 +11,4 @@ ansible_files/post_hosts
 ansible_files/group_vars/all.yaml
 ansible_files/roles/common/files/*
 ansible_files/roles/change_sshd_port/files/*
+!.gitkeep

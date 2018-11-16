@@ -1,0 +1,17 @@
+---
+- hosts: ubuntu centos windows
+  become: yes
+  tasks:
+  - name: change the password
+    user:
+      name: "{{ item.name }}"
+      password: "{{ item.password | password_hash('sha512') }}"
+    with_items: users
+    tags: users
+
+- name: change the password (Windows)
+  win_user:
+    name: "{{ item.name }}"
+    password: "{{ item.password | password_hash('sha512') }}"
+    groups: Users
+    state: present

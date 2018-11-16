@@ -1,0 +1,5 @@
+---
+- hosts: ubuntu centos windows
+  become: yes
+  roles:
+    - common

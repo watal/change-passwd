@@ -1,0 +1,61 @@
+---
+- name: install libselinux-python
+  yum:
+    name: libselinux-python
+    state: installed
+  when:
+    - ansible_distribution == "CentOS"
+
+- name: send authorized keys
+  copy: 
+    src: "{{ publickey }}"
+    dest: "/home/{{ item.name }}/.ssh/authorized_keys"
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: 0600
+  with_items: users
+  tags: users
+
+- name: disable SELinux
+  selinux:
+    state: disabled
+  tags: firewalld
+  when:
+    - ansible_distribution == "CentOS"
+
+- name: disable PasswordAuthentication
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PasswordAuthentication"
+    insertafter: "^#PasswordAuthentication"
+    line: "PasswordAuthentication no"
+
+- name: disable ChallengeResponse
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^ChallengeResponseAuthentication"
+    insertafter: "^#ChallengeResponseAuthentication"
+    line: "ChallengeResponseAuthentication no"
+
+- name: disable RootLogin
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PermitRootLogin"
+    insertafter: "^#PermitRootLogin"
+    line: "PermitRootLogin no"
+
+- name: change ssh post
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^Port"
+    insertafter: "^#Port"
+    line: "Port {{ sshd_port }}"
+  notify: restart sshd
+
+- name: enable SELinux
+  selinux:
+    policy: targeted
+    state: enforcing
+  tags: firewalld
+  when:
+    - ansible_distribution == "CentOS"

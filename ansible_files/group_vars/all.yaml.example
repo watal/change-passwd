@@ -1,0 +1,6 @@
+---
+users:
+  - { name: , password: , groups: }
+localuser:
+publickey:
+sshd_port:

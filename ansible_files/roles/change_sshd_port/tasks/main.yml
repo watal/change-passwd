@@ -1,0 +1,119 @@
+---
+- name: install libselinux-python
+  yum:
+    name: libselinux-python
+    state: installed
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_major_version == "7"
+
+- name: send public key
+  authorized_key:
+    user: "{{ item.name }}"
+    key: "{{ lookup('file', '/home/{{ localuser }}/.ssh/{{ publickey }}') }}"
+  with_items: users
+  tags: users
+
+- name: disable SELinux
+  selinux:
+    state: disabled
+  tags: firewalld
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_major_version == "7"
+
+- name: disable PasswordAuthentication
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PasswordAuthentication"
+    insertafter: "^#PasswordAuthentication"
+    line: "PasswordAuthentication no"
+
+- name: disable ChallengeResponse
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^ChallengeResponseAuthentication"
+    insertafter: "^#ChallengeResponseAuthentication"
+    line: "ChallengeResponseAuthentication no"
+
+- name: disable RootLogin
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^PermitRootLogin"
+    insertafter: "^#PermitRootLogin"
+    line: "PermitRootLogin no"
+
+- name: change ssh post
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^Port"
+    insertafter: "^#Port"
+    line: "Port {{ sshd_port }}"
+  notify: restart sshd
+
+- name: iptables is enabled and started
+  service:
+    name: ufw
+    state: running
+    enabled: yes
+  tags: iptables
+  when: ansible_distribution != "CentOS"
+
+- name: open new ssh port (iptables)
+  iptables:
+    chain: INPUT
+    protocol: tcp
+    match: tcp
+    destination_port: "{{ sshd_port }}"
+    jump: ACCEPT
+  when: ansible_distribution != "CentOS"
+
+- name: close new ssh port (iptables)
+  iptables:
+    chain: INPUT
+    protocol: tcp
+    match: tcp
+    destination_port: 22
+    jump: DROP
+  when: ansible_distribution != "CentOS"
+
+- name: firewalld is enabled and started
+  service:
+    name: firewalld
+    state: running
+    enabled: yes
+  tags: firewalld
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_major_version == "7"
+
+- name: open new ssh port (filewalld)
+  firewalld:
+    port: "{{ sshd_port }}/tcp"
+    state: enabled
+    permanent: true
+    immediate: true
+  tags: firewalld
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_major_version == "7"
+
+- name: close port 22 (firewalld)
+  firewalld:
+    port: 22/tcp
+    state: disabled
+    permanent: true
+    immediate: true
+  notify: restart firewalld
+  tags: firewalld
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_major_version == "7"
+
+- name: enable SELinux
+  selinux:
+    state: enforcing
+  tags: firewalld
+  when:
+    - ansible_distribution == "CentOS"
+    - ansible_distribution_major_version == "7"
